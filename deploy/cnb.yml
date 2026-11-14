@@ -1,0 +1,75 @@
+# ============================================================================
+# CNB 云原生构建配置：把网页版（web/ 目录）自动部署到 EdgeOne Pages
+#
+# 使用前请按 web/DEPLOY.md 完成配置（3 步）：
+#   1. EdgeOne Pages 控制台创建「直接上传」类型的项目，把项目名改到下面 EO_PAGES_PROJECT
+#   2. 创建 Pages API Token
+#   3. 在 CNB 新建「密钥仓库」，文件 envs.yml 写入：EDGEONE_PAGES_API_TOKEN: <你的token>
+#      然后解开下面 imports 的注释，地址换成你的密钥文件地址
+#
+# 文档：https://docs.cnb.cool/zh/build/configuration.html
+#      https://edgeone.cloud.tencent.com/pages/document/162936923278893056
+# ============================================================================
+
+# 触发分支：main（合并后的主分支）与 web-version（网页版开发分支）
+"(main|web-version)":
+  push:
+    - name: deploy-web-to-eo-pages
+      env:
+        # ↓↓↓ 改成你在 EdgeOne Pages 创建的项目名称（必须与 EO 控制台一致）
+        EO_PAGES_PROJECT: manosaba2c
+        # 部署目录（仓库内的网页版根目录）
+        WEB_DIR: web
+      # ↓↓↓ 配置好密钥仓库后，解开下面两行注释并替换地址
+      # imports:
+      #   - https://cnb.cool/你的账号/你的密钥仓库/-/blob/main/envs.yml
+      stages:
+        - name: 检查静态文件
+          image: alpine:3.20
+          script: |
+            set -e
+            echo "分支：$CNB_BRANCH"
+            test -d "$WEB_DIR" || { echo "❌ 未找到 $WEB_DIR 目录"; exit 1; }
+            test -f "$WEB_DIR/index.html" || { echo "❌ 缺少 $WEB_DIR/index.html"; exit 1; }
+            echo "✅ 静态文件检查通过"
+            echo "文件数：$(find "$WEB_DIR" -type f | wc -l)"
+            du -sh "$WEB_DIR"
+            if [ -z "$EDGEONE_PAGES_API_TOKEN" ]; then
+              echo "⚠️ 未配置 EDGEONE_PAGES_API_TOKEN，本次跳过部署"
+              echo "   请按 web/DEPLOY.md 创建密钥仓库，并解开 .cnb.yml 中 imports 的注释"
+            fi
+        - name: 部署到 EdgeOne Pages（正式环境）
+          if: '[ -n "$EDGEONE_PAGES_API_TOKEN" ]'
+          image: tencentcom/deploy-eopages:latest
+          script: |
+            edgeone pages deploy "$WEB_DIR" -n "$EO_PAGES_PROJECT" -t "$EDGEONE_PAGES_API_TOKEN"
+
+# 兜底配置：页面「部署」按钮 / Tag 部署时使用（详见 .cnb/tag_deploy.yml）
+$:
+  tag_deploy.production:
+    - name: deploy-web-production
+      env:
+        EO_PAGES_PROJECT: manosaba2c
+        WEB_DIR: web
+      # imports:
+      #   - https://cnb.cool/你的账号/你的密钥仓库/-/blob/main/envs.yml
+      stages:
+        - name: 部署到 EdgeOne Pages（正式环境）
+          if: '[ -n "$EDGEONE_PAGES_API_TOKEN" ]'
+          image: tencentcom/deploy-eopages:latest
+          script: |
+            edgeone pages deploy "$WEB_DIR" -n "$EO_PAGES_PROJECT" -t "$EDGEONE_PAGES_API_TOKEN"
+
+  tag_deploy.preview:
+    - name: deploy-web-preview
+      env:
+        EO_PAGES_PROJECT: manosaba2c
+        WEB_DIR: web
+      # imports:
+      #   - https://cnb.cool/你的账号/你的密钥仓库/-/blob/main/envs.yml
+      stages:
+        - name: 部署到 EdgeOne Pages（预览环境）
+          if: '[ -n "$EDGEONE_PAGES_API_TOKEN" ]'
+          image: tencentcom/deploy-eopages:latest
+          script: |
+            edgeone pages deploy "$WEB_DIR" -n "$EO_PAGES_PROJECT" -e preview -t "$EDGEONE_PAGES_API_TOKEN"

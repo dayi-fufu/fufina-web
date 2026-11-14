@@ -1,0 +1,83 @@
+# ============================================================================
+# 【方案 B】CNB 云原生构建 -> Cloudflare Pages 自动部署（完全免费）
+#
+# 用法：把本文件内容替换仓库根目录的 .cnb.yml（或在其中合并对应 pipeline），
+#       然后按 web/DEPLOY.md「方案 B」完成 3 步配置。
+#
+# 与方案 A（EdgeOne Pages）互斥，选一个即可。
+# 需要准备的密钥（放进 CNB 密钥仓库 cf-envs.yml）：
+#   CLOUDFLARE_API_TOKEN:   Cloudflare API 令牌（权限：Account -> Cloudflare Pages -> Edit）
+#   CLOUDFLARE_ACCOUNT_ID:  Cloudflare 账户 ID（Workers & Pages 页面右侧栏可复制）
+# ============================================================================
+
+"(main|web-version)":
+  push:
+    - name: deploy-web-to-cloudflare-pages
+      env:
+        # ↓↓↓ 改成你在 Cloudflare Pages 创建的项目名称
+        CF_PAGES_PROJECT: gala-web
+        # 部署目录（仓库内的网页版根目录）
+        WEB_DIR: web
+      # ↓↓↓ 配置好密钥仓库后，解开下面两行注释并替换地址
+      # imports:
+      #   - https://cnb.cool/你的账号/你的密钥仓库/-/blob/main/cf-envs.yml
+      stages:
+        - name: 检查静态文件
+          image: alpine:3.20
+          script: |
+            set -e
+            echo "分支：$CNB_BRANCH"
+            test -d "$WEB_DIR" || { echo "❌ 未找到 $WEB_DIR 目录"; exit 1; }
+            test -f "$WEB_DIR/index.html" || { echo "❌ 缺少 $WEB_DIR/index.html"; exit 1; }
+            echo "✅ 静态文件检查通过"
+            echo "文件数：$(find "$WEB_DIR" -type f | wc -l)"
+            du -sh "$WEB_DIR"
+            if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+              echo "⚠️ 未配置 CLOUDFLARE_API_TOKEN，本次跳过部署"
+              echo "   请按 web/DEPLOY.md「方案 B」创建密钥仓库，并解开 .cnb.yml 中 imports 的注释"
+            fi
+        - name: 部署到 Cloudflare Pages
+          if: '[ -n "$CLOUDFLARE_API_TOKEN" ]'
+          image: node:20-alpine
+          script: |
+            set -e
+            npm i -g wrangler@3 --silent
+            wrangler pages deploy "$WEB_DIR" \
+              --project-name "$CF_PAGES_PROJECT" \
+              --branch "$CNB_BRANCH" \
+              --commit-dirty=true
+            echo "✅ 部署完成：https://$CF_PAGES_PROJECT.pages.dev"
+
+# 兜底：页面「部署」按钮 / Tag 部署（与方案 A 的 tag_deploy 配合使用）
+$:
+  tag_deploy.production:
+    - name: deploy-web-production
+      env:
+        CF_PAGES_PROJECT: gala-web
+        WEB_DIR: web
+      # imports:
+      #   - https://cnb.cool/你的账号/你的密钥仓库/-/blob/main/cf-envs.yml
+      stages:
+        - name: 部署到 Cloudflare Pages（生产）
+          if: '[ -n "$CLOUDFLARE_API_TOKEN" ]'
+          image: node:20-alpine
+          script: |
+            set -e
+            npm i -g wrangler@3 --silent
+            wrangler pages deploy "$WEB_DIR" --project-name "$CF_PAGES_PROJECT" --branch main --commit-dirty=true
+
+  tag_deploy.preview:
+    - name: deploy-web-preview
+      env:
+        CF_PAGES_PROJECT: gala-web
+        WEB_DIR: web
+      # imports:
+      #   - https://cnb.cool/你的账号/你的密钥仓库/-/blob/main/cf-envs.yml
+      stages:
+        - name: 部署到 Cloudflare Pages（预览）
+          if: '[ -n "$CLOUDFLARE_API_TOKEN" ]'
+          image: node:20-alpine
+          script: |
+            set -e
+            npm i -g wrangler@3 --silent
+            wrangler pages deploy "$WEB_DIR" --project-name "$CF_PAGES_PROJECT" --branch preview --commit-dirty=true

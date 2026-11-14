@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>魔法少女的逆转裁判</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app" class="page">
+
+  <!-- 预加载遮罩 -->
+  <div id="loadingMask" class="loading-mask hidden">
+    <div class="loading-content">
+      <div id="loadingText" class="loading-text"></div>
+      <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+      <div id="loadingPercent" class="loading-percent"></div>
+      <button id="retryBtn" class="loading-btn hidden" data-action="retryPreload">重新加载</button>
+    </div>
+  </div>
+
+  <!-- 背景图（无视频时使用） -->
+  <div id="bgWrap" class="bg-wrap"><div id="bg" class="bg bg-view"></div></div>
+
+  <!-- 视频背景（有视频时使用） -->
+  <video id="bgVideo" class="bg hidden" playsinline webkit-playsinline></video>
+
+  <!-- 暗场渐变遮罩层 -->
+  <div id="darkMask" class="dark-mask"></div>
+
+  <!-- 透明点击层（用于无对话框时点击跳过） -->
+  <div id="clickLayer" class="fullscreen-click-layer" data-action="onDialogTap"></div>
+
+  <!-- 桌子图层 -->
+  <div id="tableWrap" class="table-wrap hidden">
+    <img id="tableImage" class="table-image" alt="">
+  </div>
+
+  <!-- 顶部功能栏 -->
+  <div id="topBar" class="top-bar"></div>
+
+  <!-- 多角色立绘区域 -->
+  <div id="characterWrap" class="character-wrap"></div>
+
+  <!-- 底部对话框区域 -->
+  <div id="dialogArea" class="dialog-area hidden" data-action="onDialogTap">
+    <div id="nameBar" class="name-bar"></div>
+    <div class="dialog-box" data-action="onDialogTap">
+      <div id="dialogContent" class="content"></div>
+      <div id="dialogHint" class="hint hidden">▷</div>
+    </div>
+  </div>
+
+  <!-- 分支选项面板 -->
+  <div id="choicePanel" class="choice-panel hidden"></div>
+
+  <!-- 结局面板 -->
+  <div id="endingPanel" class="ending-panel hidden">
+    <div id="endingTitle" class="ending-title"></div>
+    <div id="endingText" class="ending-text hidden"></div>
+    <div id="endingSubtitle" class="ending-subtitle hidden">— 完 —</div>
+    <div class="ending-divider"></div>
+    <button class="ending-btn load-btn" data-action="onLoadGame">读档</button>
+    <button class="ending-btn restart-btn" data-action="onRestart">重新开始</button>
+  </div>
+
+  <!-- 历史记录浮层 -->
+  <div id="historyMask" class="history-mask hidden" data-action="hideHistory">
+    <div class="history-container" data-stop>
+      <div class="history-header">
+        <span>对话历史</span>
+        <div class="history-close" data-action="hideHistory">✕</div>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </div>
+  </div>
+
+  <!-- 存档点警告浮层 -->
+  <div id="savePointWarningMask" class="save-point-warning-mask hidden" data-action="cancelSavePointWarning">
+    <div class="save-point-warning-container" data-stop>
+      <div class="save-point-warning-icon">⚠️</div>
+      <div class="save-point-warning-text">存档点功能并非为正常流程设计，除非你由于退出等原因丢失进度，否则不建议使用存档点功能！</div>
+      <div class="save-point-warning-btns">
+        <button class="save-point-warning-btn cancel" data-action="cancelSavePointWarning">返回</button>
+        <button class="save-point-warning-btn confirm" data-action="confirmSavePointWarning">我知道我在干什么</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 存档点浮层 -->
+  <div id="savePointMask" class="save-point-mask hidden" data-action="hideSavePoints">
+    <div class="save-point-container" data-stop>
+      <div class="save-point-header">
+        <span>存档点</span>
+        <div class="save-point-close" data-action="hideSavePoints">✕</div>
+      </div>
+      <div id="savePointList" class="save-point-list"></div>
+    </div>
+  </div>
+
+  <!-- 图鉴/出示浮层 -->
+  <div id="encyclopediaMask" class="encyclopedia-mask hidden" data-action="onMaskTap">
+
+    <!-- 强制图片出示交互模式 -->
+    <div id="forcedPresent" class="forced-present-container hidden" data-stop>
+      <div class="forced-scroll-view">
+        <div class="forced-image-wrapper">
+          <img id="forcedImage" class="forced-image" alt="" data-action="onForcedImageTap">
+        </div>
+      </div>
+      <div class="forced-submit-float" data-action="presentSubmitForced">出示</div>
+      <div id="forcedRectBorder" class="forced-rect-border hidden"></div>
+      <div id="forcedMarkDot" class="forced-mark-dot hidden"></div>
+    </div>
+
+    <!-- 普通百科/出示容器 -->
+    <div id="encyContainer" class="encyclopedia-container hidden" data-stop>
+      <div id="encyBackBtn" class="ency-back-btn hidden" data-action="hideEncyclopedia">←</div>
+
+      <div id="encyTabs" class="ency-tabs"></div>
+
+      <div class="ency-main">
+        <div class="ency-detail-area">
+          <!-- 地图模式 -->
+          <div id="encyMapArea" class="ency-map-area hidden">
+            <img id="encyMapImg" class="ency-map-img" alt="">
+            <div id="encyMapPlaceholder" class="ency-map-placeholder hidden">暂无地图图片</div>
+          </div>
+
+          <!-- 非地图模式：左右分栏 -->
+          <div id="encyDetailRow" class="ency-detail-row hidden">
+            <div class="ency-detail-left">
+              <div id="encyProfileWrap" class="ency-detail-profile hidden">
+                <img id="encyProfileImg" class="ency-profile-img" alt="" data-action="onProfileImageTap">
+              </div>
+              <div id="encyName" class="ency-detail-name-text"></div>
+              <div id="encyPresentBtn" class="ency-detail-present-btn hidden" data-action="presentSubmit">
+                <span class="present-btn-text">出示</span>
+              </div>
+            </div>
+            <div class="ency-detail-right">
+              <div id="encyDesc" class="ency-detail-right-scroll">
+                <div class="ency-detail-desc-text"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 地图出示按钮（浮动） -->
+          <div id="mapPresentBtn" class="map-present-float-btn hidden" data-action="presentSubmit">
+            <span class="present-float-text">出示</span>
+          </div>
+        </div>
+
+        <div class="ency-list-area">
+          <div class="list-arrow left-arrow" data-action="doNothing">◀</div>
+          <div class="list-arrow right-arrow" data-action="doNothing">▶</div>
+          <div class="ency-list-scroll">
+            <div id="encyListWrapper" class="ency-list-wrapper"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 详情浮层（证物详情多页展示） -->
+  <div id="detailMask" class="detail-mask hidden" data-action="closeDetailPopup">
+    <div class="detail-container" data-stop>
+      <div class="detail-back-btn" data-action="closeDetailPopup">←</div>
+      <div id="detailContent" class="detail-content hidden">
+        <span id="detailText" class="detail-text"></span>
+      </div>
+      <div id="detailImageWrap" class="detail-image-container hidden">
+        <img id="detailImage" class="detail-image" alt="">
+      </div>
+      <div id="detailIndicator" class="detail-page-indicator hidden"></div>
+      <div id="detailPrev" class="detail-nav-btn detail-prev-btn hidden" data-action="onDetailPrev">◀</div>
+      <div id="detailNext" class="detail-nav-btn detail-next-btn hidden" data-action="onDetailNext">▶</div>
+    </div>
+  </div>
+
+  <!-- 异议图片浮层 -->
+  <div id="objectionMask" class="objection-mask hidden">
+    <img id="objectionImg" class="objection-img" alt="">
+  </div>
+
+</div>
+
+<!-- 轻提示浮层 -->
+<div id="toast" class="toast"></div>
+
+<script src="js/utils/platform.js"></script>
+<script src="js/utils/audio.js"></script>
+<script src="js/utils/save.js"></script>
+<script src="js/data/story.js"></script>
+<script src="js/data/encyclopedia.js"></script>
+<script src="js/utils/preload.js"></script>
+<script src="js/framework.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

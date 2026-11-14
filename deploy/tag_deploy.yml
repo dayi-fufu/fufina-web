@@ -1,0 +1,16 @@
+# 部署环境定义：在仓库页面「部署」页会显示对应的部署按钮
+# 文档：https://docs.cnb.cool/zh/build/deploy.html
+#
+# 注意：页面部署基于选中的 Tag 代码执行，
+#       所以手动部署前请先在 Tag 列表页创建/选择版本 Tag。
+environments:
+  - name: production
+    description: 部署网页版到 EdgeOne Pages 正式环境
+    env:
+      name: production
+      tag_name: $CNB_BRANCH
+  - name: preview
+    description: 部署网页版到 EdgeOne Pages 预览环境（用于测试，不影响正式站点）
+    env:
+      name: preview
+      tag_name: $CNB_BRANCH
